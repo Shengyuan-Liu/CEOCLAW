@@ -1,0 +1,6 @@
+venv/workspace/*
+.DS_Store
+.venv
+CLAUDE.md
+data/memory/*.json
+__pycache__
