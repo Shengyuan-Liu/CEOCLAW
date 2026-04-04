@@ -4,3 +4,4 @@ venv/workspace/*
 CLAUDE.md
 data/memory/*.json
 __pycache__
+try

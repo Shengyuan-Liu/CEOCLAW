@@ -47,8 +47,7 @@ class LongTermMemory:
                     data = json.load(f)
                     logger.debug(f"Loaded long-term memory from {self.db_path}")
 
-                    # 数据迁移：兼容旧格式
-                    data = self._migrate_data(data)
+                    data = self._ensure_fields(data)
                     return data
             except Exception as e:
                 logger.error(f"Failed to load long-term memory: {e}")
@@ -57,57 +56,22 @@ class LongTermMemory:
             logger.info("No existing long-term memory, creating new")
             return self._init_data()
 
-    def _migrate_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _ensure_fields(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        迁移旧数据格式到新格式
+        确保必需字段存在，防止手动编辑JSON导致字段缺失
 
         Args:
             data: 原始数据
 
         Returns:
-            迁移后的数据
+            补全后的数据
         """
-        # 1. 确保必需字段存在
-        if "chat_history" not in data:
-            data["chat_history"] = []
-        if "project_history" not in data:
-            data["project_history"] = []
-        if "statistics" not in data:
-            data["statistics"] = {}
+        defaults = self._init_data()
+        for key, value in defaults.items():
+            if key not in data:
+                data[key] = value
         if "total_messages" not in data.get("statistics", {}):
             data["statistics"]["total_messages"] = 0
-        if "preferences" not in data:
-            data["preferences"] = []
-
-        # 2. 迁移旧格式：字典 → 列表
-        if isinstance(data.get("preferences"), dict):
-            old_prefs = data["preferences"]
-            new_prefs = []
-            for pref_type, pref_value in old_prefs.items():
-                if pref_value is not None:
-                    new_prefs.append({"type": pref_type, "value": pref_value})
-            data["preferences"] = new_prefs
-            logger.info(f"Migrated: Converted preferences from dict to list ({len(new_prefs)} items)")
-
-        # 3. 修复嵌套 bug（旧代码产生的错误数据）
-        if isinstance(data.get("preferences"), list):
-            fixed_prefs = []
-            for pref in data["preferences"]:
-                if isinstance(pref, dict):
-                    if pref.get("type") == "preferences" and isinstance(pref.get("value"), list):
-                        for nested_pref in pref["value"]:
-                            if isinstance(nested_pref, dict) and "type" in nested_pref:
-                                fixed_prefs.append({"type": nested_pref["type"], "value": nested_pref["value"]})
-                        logger.info("Migrated: Fixed nested preferences bug")
-                    else:
-                        fixed_prefs.append(pref)
-
-            if fixed_prefs != data["preferences"]:
-                data["preferences"] = fixed_prefs
-
-        # 保存迁移后的数据
-        self.data = data
-        self._save()
 
         return data
 
